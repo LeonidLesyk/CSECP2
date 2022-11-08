@@ -3,7 +3,16 @@ from django.shortcuts import render
 # Create your views here.
 from django.http import HttpResponse
 
+def send(request):
+    return HttpResponse("send mesg")
 
-def index(request):
+def read(request):
+    return HttpResponse("readmsg")
 
-    return HttpResponse("Hello, world. You're at the views index.")
+def certify(request):
+    return HttpResponse("certify")
+
+def register(request):
+    return HttpResponse("register")
+
+
