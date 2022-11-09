@@ -3,6 +3,7 @@ from django.shortcuts import render
 # Create your views here.
 from django.http import HttpResponse
 
+@csrf_exempt
 def send(request):
     return HttpResponse("send mesg")
 
