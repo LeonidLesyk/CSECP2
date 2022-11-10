@@ -9,4 +9,4 @@ def sendmessage(to,message):
 
     print(r.text)
 
-sendmessage("a","lole")
+sendmessage("a","hello")
