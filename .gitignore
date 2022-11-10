@@ -1,3 +1,4 @@
 *.pyc
 *.pem
 *.pub
+messagehost/msg/migrations/
