@@ -8,6 +8,7 @@ from cryptography.hazmat.primitives.serialization import load_pem_public_key
 
 #URLPREFIX = "https://ll213.host.cs.st-andrews.ac.uk"
 URLPREFIX = "http://localhost:22849"
+
 #send encrypted and signed message to server
 def sendmessage(to,message):
     
@@ -89,11 +90,16 @@ def getspecpublickey(username):
     print(r.text)
     return r.text
 
+def getpuzzle():
+    URL = URLPREFIX + "/msg/getpuzzle"
+    r = requests.get(url=URL)
+    return r.text
+
 #sendmessage("a","hello")
 #register("me")
 
+#load in private key from file
 myprivatekey = None
-
 with open("rsa.pem", "rb") as privatekey_file:
 
         myprivatekey = serialization.load_pem_private_key(
@@ -101,7 +107,8 @@ with open("rsa.pem", "rb") as privatekey_file:
             password=None
         )
 
-sendmessage("me", "hi")
+#print(getpuzzle())
+#sendmessage("me", "hi")
 #getspecpublickey("robert")
 
 #with open("rsa.pem", "rb") as privatekey_file:
