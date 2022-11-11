@@ -2,3 +2,4 @@
 *.pem
 *.pub
 messagehost/msg/migrations/
+messagehost/msg/migrations/0001_initial.py

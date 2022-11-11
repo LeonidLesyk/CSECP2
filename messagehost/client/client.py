@@ -5,7 +5,8 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import hashes
 
-URLPREFIX = "https://ll213.host.cs.st-andrews.ac.uk"
+#URLPREFIX = "https://ll213.host.cs.st-andrews.ac.uk"
+URLPREFIX = "http://localhost:22849"
 #send encrypted and signed message to server
 def sendmessage(to,message):
     
@@ -70,9 +71,16 @@ def register(username,password):
     r = requests.post(url=URL, data=DATA)
     print(r.status_code)
     
+def getspecpublickey(username):
+    URL = URLPREFIX + "/msg/certify/"
+    DATA = {'username':username}
+    r = requests.post(url=URL, data=DATA)
+    print(r.text)
 
-sendmessage("a","hello")
-register("abc","password123")
+#sendmessage("a","hello")
+#register("robert","password123")
+
+getspecpublickey("robert")
 
 #with open("rsa.pem", "rb") as privatekey_file:
 #

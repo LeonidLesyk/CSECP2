@@ -2,6 +2,7 @@ from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse
 from .models import public_keys
+
 #todo
 @csrf_exempt
 def send(request):
@@ -11,8 +12,12 @@ def send(request):
 def read(request):
     return HttpResponse("readmsg")
 
+@csrf_exempt
 def certify(request):
-    return HttpResponse("certify")
+    requested_username = request.POST.get("username")
+    entry = public_keys.objects.get(username=requested_username)
+    print(entry.public_key)
+    return HttpResponse(entry.public_key)
 
 @csrf_exempt
 def register(request):
