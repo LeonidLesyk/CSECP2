@@ -90,34 +90,79 @@ def getspecpublickey(username):
     print(r.text)
     return r.text
 
+#gets puzzle needed for reading messages and proof of private key ownership
 def getpuzzle():
-    URL = URLPREFIX + "/msg/getpuzzle"
+    URL = URLPREFIX + "/msg/getpuzzle/"
     r = requests.get(url=URL)
     return r.text
+
+def readmessages(username):
+
+    puzzle = getpuzzle()
+    signature = myprivatekey.sign(
+        str.encode(puzzle),
+            padding.PSS(
+                mgf=padding.MGF1(hashes.SHA256()),
+                salt_length=padding.PSS.MAX_LENGTH
+        ),
+         hashes.SHA256()
+    )
+
+    """
+    print(signature)
+    mypublickey.verify(
+        signature,
+        str.encode(puzzle),
+        padding.PSS(
+            mgf=padding.MGF1(hashes.SHA256()),
+            salt_length=padding.PSS.MAX_LENGTH
+        ),
+        hashes.SHA256()
+    )
+    print("verified")
+    
+    signature = signature.hex()
+    print("new sig")
+    print(signature)
+    print("puzzle")
+    print(puzzle)
+    print("publickeystring")
+    print(pubkeystr)
+    """
+    
+    URL = URLPREFIX + "/msg/readmessage/"
+    DATA = {'username':username,'signature':signature,'puzzle':puzzle}
+    r = requests.post(url=URL, data=DATA)
+
 
 #sendmessage("a","hello")
 #register("me")
 
 #load in private key from file
 myprivatekey = None
+privkeystr = None
 with open("rsa.pem", "rb") as privatekey_file:
-
+        
         myprivatekey = serialization.load_pem_private_key(
             privatekey_file.read(),
             password=None
         )
 
+
 #print(getpuzzle())
 #sendmessage("me", "hi")
 #getspecpublickey("robert")
 
-#with open("rsa.pem", "rb") as privatekey_file:
-#
-#        private_key = serialization.load_pem_private_key(
-#            privatekey_file.read(),
-#            password=b"123",
-#        )
+mypublickey = None
+with open("rsa.pub", "rb") as keyfile:
+        mypublickey = serialization.load_pem_public_key(
+            keyfile.read(),
+        )
 
+with open("rsa.pub", "rb") as keyfile:
+    pubkeystr = keyfile.read()
+
+readmessages("me")
 #plaintext = private_key.decrypt(
 #    ciphertext,
 #    padding.OAEP(
@@ -126,5 +171,3 @@ with open("rsa.pem", "rb") as privatekey_file:
 #        label=None
 #    )
 #)
-
-#print(plaintext)
