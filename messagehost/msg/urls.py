@@ -7,5 +7,6 @@ urlpatterns = [
     path('readmessage/', views.read, name='reasmessage'),
     path('certify/', views.certify, name='certify'),
     path('registeruser/', views.register, name='registeruser'),
+    path('getpuzzle/', views.givePuzzle, name='getpuzzle'),
     
 ]
