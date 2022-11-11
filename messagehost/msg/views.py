@@ -44,7 +44,7 @@ def register(request):
 def givePuzzle(request):
 
     #clear puzzles older than 5 seconds
-    while held_puzzles[0] + timedelta(5) < datetime.now():
+    while len(held_puzzles) > 0 and held_puzzles[0] + timedelta(5) < datetime.now():
         held_puzzles.pop(0)
     
     puzzle = datetime.now()
