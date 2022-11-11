@@ -3,6 +3,9 @@ from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse
 from .models import public_keys
 from .models import unread_messages
+from datetime import datetime, timedelta
+
+held_puzzles =[]
 
 #todo
 @csrf_exempt
@@ -37,4 +40,14 @@ def register(request):
     newuser.save()
     return HttpResponse("register")
 
+#gives a puzzle to be encrypted and sent back as proof of private key ownership (0 knowledge proof)
+def givePuzzle(request):
 
+    #clear puzzles older than 5 seconds
+    while held_puzzles[0] + timedelta(5) < datetime.now():
+        held_puzzles.pop(0)
+    
+    puzzle = datetime.now()
+
+    held_puzzles.append(puzzle)
+    return HttpResponse(puzzle)
