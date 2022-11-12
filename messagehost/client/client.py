@@ -99,6 +99,8 @@ def getpuzzle():
 def readmessages(username):
 
     puzzle = getpuzzle()
+    print(type(puzzle))
+    print(puzzle)
     signature = myprivatekey.sign(
         str.encode(puzzle),
             padding.PSS(
@@ -129,6 +131,8 @@ def readmessages(username):
     print("publickeystring")
     print(pubkeystr)
     """
+    #ensures proper sending over post
+    signature=signature.hex()
     
     URL = URLPREFIX + "/msg/readmessage/"
     DATA = {'username':username,'signature':signature,'puzzle':puzzle}

@@ -36,7 +36,8 @@ def read(request):
 
     print(held_puzzles)
     print(puzzle)
-    if datetime.strptime(puzzle, '%y-%m-%d %H:%M:%S.%f') in held_puzzles:
+    puzzledatetime = datetime.strptime(puzzle, "%Y-%m-%d %H:%M:%S.%f")
+    if puzzledatetime in held_puzzles:
         public_key.verify(
             codecs.decode(signature,'hex_codec'),
             str.encode(puzzle),
@@ -47,7 +48,7 @@ def read(request):
             hashes.SHA256()
         )
 
-        held_puzzles.remove(puzzle)
+        held_puzzles.remove(puzzledatetime)
     else:
         print("puzzle not found")
         return HttpResponse("puzzle expired")
