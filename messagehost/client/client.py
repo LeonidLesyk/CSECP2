@@ -1,5 +1,7 @@
 import requests
 import sys
+import json
+import codecs
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import padding
@@ -17,7 +19,6 @@ def sendmessage(to,message):
     public_key = load_pem_public_key(public_keystr.encode())
     if isinstance(public_key, rsa.RSAPublicKey):
         print("worked")
-
 
     #create signature using your own private key
     signature = myprivatekey.sign(
@@ -41,7 +42,7 @@ def sendmessage(to,message):
     )
 
     URL = URLPREFIX + "/msg/sendmessage/"
-    DATA = {'receiver':to,'encrypted_message':encrypted_message, 'signature':signature}
+    DATA = {'receiver':to,'encrypted_message':encrypted_message.hex(), 'signature':signature.hex()}
 
     r = requests.post(url=URL, data=DATA)
     print(r.text)
@@ -133,10 +134,32 @@ def readmessages(username):
     """
     #ensures proper sending over post
     signature=signature.hex()
-    
+
     URL = URLPREFIX + "/msg/readmessage/"
     DATA = {'username':username,'signature':signature,'puzzle':puzzle}
     r = requests.post(url=URL, data=DATA)
+
+    msg_list = json.loads(r.text)
+    print(len(msg_list))
+    
+    for msg in msg_list:
+        print(bytes(msg["fields"]["payload"],'utf-8'))
+        
+        #decode
+        
+        decrypted_message = myprivatekey.decrypt(
+                
+            codecs.decode(msg["fields"]["payload"],'hex_codec'),
+            padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None
+            )
+        )
+
+        print(decrypted_message)
+
+        #verify
 
 
 #sendmessage("a","hello")
@@ -154,7 +177,7 @@ with open("rsa.pem", "rb") as privatekey_file:
 
 
 #print(getpuzzle())
-#sendmessage("me", "hi")
+
 #getspecpublickey("robert")
 
 mypublickey = None
@@ -166,7 +189,9 @@ with open("rsa.pub", "rb") as keyfile:
 with open("rsa.pub", "rb") as keyfile:
     pubkeystr = keyfile.read()
 
+#sendmessage("me", "greetings")
 readmessages("me")
+
 #plaintext = private_key.decrypt(
 #    ciphertext,
 #    padding.OAEP(

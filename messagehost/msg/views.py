@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse
+from django.core import serializers
 from .models import public_keys
 from .models import unread_messages
 from datetime import datetime, timedelta
@@ -34,9 +35,8 @@ def read(request):
     public_keystr = entry.public_key
     public_key = load_pem_public_key(str.encode(public_keystr))
 
+    #verify puzzle with claimed user
     clearPuzzles()
-    print(held_puzzles)
-    print(puzzle)
     puzzledatetime = datetime.strptime(puzzle, "%Y-%m-%d %H:%M:%S.%f")
     if puzzledatetime in held_puzzles:
         public_key.verify(
@@ -56,9 +56,11 @@ def read(request):
 
     print("verified")
 
+    msg_json = serializers.serialize('json',unread_messages.objects.filter(receiver=claimedusername))
+    print(msg_json)
+    return HttpResponse(msg_json)
 
-    return HttpResponse(unread_messages.objects.filter(receiver=claimedusername))
-
+#gives public key for specified user
 @csrf_exempt
 def certify(request):
     requested_username = request.POST.get("username")
