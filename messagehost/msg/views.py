@@ -18,8 +18,9 @@ def send(request):
     PAYLOAD = request.POST.get("encrypted_message")
     SIGNATURE = request.POST.get("signature")
     RECEIVER = request.POST.get("receiver")
+    SENDER = request.POST.get("sender")
 
-    new_message = unread_messages(payload=PAYLOAD, signature=SIGNATURE,receiver=RECEIVER)
+    new_message = unread_messages(payload=PAYLOAD, signature=SIGNATURE,receiver=RECEIVER,sender=SENDER)
     new_message.save()
     print("message saved")
     return HttpResponse("send mesg")

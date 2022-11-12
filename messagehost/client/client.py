@@ -12,7 +12,7 @@ from cryptography.hazmat.primitives.serialization import load_pem_public_key
 URLPREFIX = "http://localhost:22849"
 
 #send encrypted and signed message to server
-def sendmessage(to,message):
+def sendmessage(to,message,by):
     
     #get receivers public key from server
     public_keystr = getspecpublickey(to)
@@ -41,8 +41,18 @@ def sendmessage(to,message):
         )
     )
 
+    #encrypt sender name
+    encrypted_sender = public_key.encrypt(
+        str.encode(by),
+        padding.OAEP(
+            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+            algorithm=hashes.SHA256(),
+            label=None
+        )
+    )
+
     URL = URLPREFIX + "/msg/sendmessage/"
-    DATA = {'receiver':to,'encrypted_message':encrypted_message.hex(), 'signature':signature.hex()}
+    DATA = {'receiver':to,'encrypted_message':encrypted_message.hex(), 'signature':signature.hex(), 'sender':encrypted_sender.hex()}
 
     r = requests.post(url=URL, data=DATA)
     print(r.text)
@@ -132,6 +142,7 @@ def readmessages(username):
     print("publickeystring")
     print(pubkeystr)
     """
+
     #ensures proper sending over post
     signature=signature.hex()
 
@@ -141,12 +152,12 @@ def readmessages(username):
 
     msg_list = json.loads(r.text)
     print(len(msg_list))
-    
+    #print(r.text)
+
     for msg in msg_list:
         print(bytes(msg["fields"]["payload"],'utf-8'))
         
-        #decode
-        
+        #decrypt message and sender
         decrypted_message = myprivatekey.decrypt(
                 
             codecs.decode(msg["fields"]["payload"],'hex_codec'),
@@ -156,14 +167,35 @@ def readmessages(username):
                 label=None
             )
         )
+        decrypted_sender = myprivatekey.decrypt(
+                
+            codecs.decode(msg["fields"]["sender"],'hex_codec'),
+            padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None
+            )
+        )
 
-        print(decrypted_message)
+        #get claimed senders public key for verification of signature
+        sender_public_keystr = getspecpublickey(decrypted_sender.decode("utf-8"))
+
+        sender_publickey = load_pem_public_key(sender_public_keystr.encode())
 
         #verify
+        sender_publickey.verify(
+            codecs.decode(msg["fields"]["signature"],'hex_codec'),
+            decrypted_message,
+            padding.PSS(
+                mgf=padding.MGF1(hashes.SHA256()),
+                salt_length=padding.PSS.MAX_LENGTH
+            ),
+            hashes.SHA256()
+        )
 
+        print("verified message from " + decrypted_sender.decode('utf-8') + ":")
+        print(decrypted_message)
 
-#sendmessage("a","hello")
-#register("me")
 
 #load in private key from file
 myprivatekey = None
@@ -175,11 +207,6 @@ with open("rsa.pem", "rb") as privatekey_file:
             password=None
         )
 
-
-#print(getpuzzle())
-
-#getspecpublickey("robert")
-
 mypublickey = None
 with open("rsa.pub", "rb") as keyfile:
         mypublickey = serialization.load_pem_public_key(
@@ -189,14 +216,9 @@ with open("rsa.pub", "rb") as keyfile:
 with open("rsa.pub", "rb") as keyfile:
     pubkeystr = keyfile.read()
 
-#sendmessage("me", "greetings")
+
+#register("me")
+#sendmessage("me", "greetings","me")
 readmessages("me")
 
-#plaintext = private_key.decrypt(
-#    ciphertext,
-#    padding.OAEP(
-#        mgf=padding.MGF1(algorithm=hashes.SHA256()),
-#        algorithm=hashes.SHA256(),
-#        label=None
-#    )
-#)
+
