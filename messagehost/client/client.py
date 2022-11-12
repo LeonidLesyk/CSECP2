@@ -12,13 +12,11 @@ from cryptography.hazmat.primitives.serialization import load_pem_public_key
 URLPREFIX = "http://localhost:22849"
 
 #send encrypted and signed message to server
-def sendmessage(to,message,by):
+def sendmessage(message,to,by):
     
     #get receivers public key from server
     public_keystr = getspecpublickey(to)
     public_key = load_pem_public_key(public_keystr.encode())
-    if isinstance(public_key, rsa.RSAPublicKey):
-        print("worked")
 
     #create signature using your own private key
     signature = myprivatekey.sign(
@@ -29,7 +27,6 @@ def sendmessage(to,message,by):
         ),
          hashes.SHA256()
     )
-    print(signature)
 
     #encrypt message using receivers public key
     encrypted_message = public_key.encrypt(
@@ -55,7 +52,9 @@ def sendmessage(to,message,by):
     DATA = {'receiver':to,'encrypted_message':encrypted_message.hex(), 'signature':signature.hex(), 'sender':encrypted_sender.hex()}
 
     r = requests.post(url=URL, data=DATA)
-    print(r.text)
+    if(r.status_code != 200):
+        print("failure to send message")
+        quit()
 
 #register public key and username to server
 def register(username):
@@ -87,18 +86,22 @@ def register(username):
     #send username and public key to server
     URL = URLPREFIX + "/msg/registeruser/"
     DATA = {'username':username,'public_key':pem_public_key}
-    print(pem_public_key.decode())
 
     r = requests.post(url=URL, data=DATA)
-    print(r.status_code)
+    if(r.status_code!=200):
+        print("registration failure, duplicate username?")
+        print("please reregister your now saved keys are not on the server")
+        quit()
 
 #returns public key of the username stored on the server database
 def getspecpublickey(username):
     URL = URLPREFIX + "/msg/certify/"
     DATA = {'username':username}
     r = requests.post(url=URL, data=DATA)
-    print("got key for user: " + username)
-    print(r.text)
+    if(r.status_code!=200):
+        print(f"public key retrieval failure for {username}, not a registered user?")
+        quit()
+    
     return r.text
 
 #gets puzzle needed for reading messages and proof of private key ownership
@@ -109,9 +112,8 @@ def getpuzzle():
 
 def readmessages(username):
 
+    #get puzzle, sign it
     puzzle = getpuzzle()
-    print(type(puzzle))
-    print(puzzle)
     signature = myprivatekey.sign(
         str.encode(puzzle),
             padding.PSS(
@@ -121,104 +123,109 @@ def readmessages(username):
          hashes.SHA256()
     )
 
-    """
-    print(signature)
-    mypublickey.verify(
-        signature,
-        str.encode(puzzle),
-        padding.PSS(
-            mgf=padding.MGF1(hashes.SHA256()),
-            salt_length=padding.PSS.MAX_LENGTH
-        ),
-        hashes.SHA256()
-    )
-    print("verified")
-    
-    signature = signature.hex()
-    print("new sig")
-    print(signature)
-    print("puzzle")
-    print(puzzle)
-    print("publickeystring")
-    print(pubkeystr)
-    """
-
     #ensures proper sending over post
     signature=signature.hex()
 
     URL = URLPREFIX + "/msg/readmessage/"
     DATA = {'username':username,'signature':signature,'puzzle':puzzle}
     r = requests.post(url=URL, data=DATA)
+    if(r.status_code!=200):
+        print("failure reading messages: puzzle failed?")
+        quit()
 
     msg_list = json.loads(r.text)
-    print(len(msg_list))
-    #print(r.text)
+    no_newmessages = len(msg_list)
+    if(no_newmessages > 0):
+        print(f"you have {no_newmessages} new message(s)")
+    else:
+        print("no new messages")
 
     for msg in msg_list:
-        print(bytes(msg["fields"]["payload"],'utf-8'))
-        
-        #decrypt message and sender
-        decrypted_message = myprivatekey.decrypt(
-                
-            codecs.decode(msg["fields"]["payload"],'hex_codec'),
-            padding.OAEP(
-                mgf=padding.MGF1(algorithm=hashes.SHA256()),
-                algorithm=hashes.SHA256(),
-                label=None
+        try:
+            #decrypt message and sender
+            decrypted_message = myprivatekey.decrypt(
+                codecs.decode(msg["fields"]["payload"],'hex_codec'),
+                padding.OAEP(
+                    mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                    algorithm=hashes.SHA256(),
+                    label=None
+                )
             )
-        )
-        decrypted_sender = myprivatekey.decrypt(
-                
-            codecs.decode(msg["fields"]["sender"],'hex_codec'),
-            padding.OAEP(
-                mgf=padding.MGF1(algorithm=hashes.SHA256()),
-                algorithm=hashes.SHA256(),
-                label=None
+            decrypted_sender = myprivatekey.decrypt(
+                codecs.decode(msg["fields"]["sender"],'hex_codec'),
+                padding.OAEP(
+                    mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                    algorithm=hashes.SHA256(),
+                    label=None
+                )
             )
-        )
 
-        #get claimed senders public key for verification of signature
-        sender_public_keystr = getspecpublickey(decrypted_sender.decode("utf-8"))
+            #get claimed senders public key for verification of signature
+            sender_public_keystr = getspecpublickey(decrypted_sender.decode("utf-8"))
+            sender_publickey = load_pem_public_key(sender_public_keystr.encode())
 
-        sender_publickey = load_pem_public_key(sender_public_keystr.encode())
+            #verify given signature with decoded message
+            sender_publickey.verify(
+                codecs.decode(msg["fields"]["signature"],'hex_codec'),
+                decrypted_message,
+                padding.PSS(
+                    mgf=padding.MGF1(hashes.SHA256()),
+                    salt_length=padding.PSS.MAX_LENGTH
+                ),
+                hashes.SHA256()
+            )
 
-        #verify
-        sender_publickey.verify(
-            codecs.decode(msg["fields"]["signature"],'hex_codec'),
-            decrypted_message,
-            padding.PSS(
-                mgf=padding.MGF1(hashes.SHA256()),
-                salt_length=padding.PSS.MAX_LENGTH
-            ),
-            hashes.SHA256()
-        )
+            print("verified message from " + decrypted_sender.decode('utf-8') + ":")
+            print(decrypted_message)
+        except:
+            print("message could not be verified and decrypted")
 
-        print("verified message from " + decrypted_sender.decode('utf-8') + ":")
-        print(decrypted_message)
+def printusage():
+    print("Usage:")
+    print("python client.py <HOST_URL> register <NEW_USERNAME>")
+    print("     creates a keypair storing them in rsa.pem and rsa.pub and stores the public key on the server")
+    print("     be sure to remember your username!!!")
+    print("     this will overwrite any previously stored keyfile with the same name")
+    print("python client.py <HOST_URL> read <YOUR_USERNAME>")
+    print("     gets your unread messages from the server, they will be deleted from the server by the time you get them, you will not be able to read them again")
+    print("python client.py <HOST_URL> send <MESSAGE> <ADDRESSEE_USERNAME> <YOUR_USERNAME>")
+    print("     sends the message the user specified, be sure to write your username correctly")
 
-
-#load in private key from file
-myprivatekey = None
-privkeystr = None
-with open("rsa.pem", "rb") as privatekey_file:
-        
+def loadPrivateKey():
+    #load in private key from file
+    global myprivatekey
+    with open("rsa.pem", "rb") as privatekey_file:
         myprivatekey = serialization.load_pem_private_key(
             privatekey_file.read(),
             password=None
         )
 
-mypublickey = None
-with open("rsa.pub", "rb") as keyfile:
-        mypublickey = serialization.load_pem_public_key(
-            keyfile.read(),
-        )
+if(len(sys.argv) > 1):
+    URLPREFIX = sys.argv[1]
 
-with open("rsa.pub", "rb") as keyfile:
-    pubkeystr = keyfile.read()
+if(len(sys.argv) == 4):
+    if(sys.argv[2] == "register"):
+        print("registering user...")
+        register(sys.argv[3])
+        print("registered")
+    elif(sys.argv[2] == "read"):
+        loadPrivateKey()
+        print("getting messages for user:" + sys.argv[3])
+        readmessages(sys.argv[3])
+    else:
+        printusage()
+
+elif(len(sys.argv) == 6 and sys.argv[2] == "send"):
+    loadPrivateKey()
+    print("sending message...")
+    sendmessage(sys.argv[3],sys.argv[4],sys.argv[5])
+    print("message sent")
+else:
+    printusage()
 
 
-#register("me")
-#sendmessage("me", "greetings","me")
-readmessages("me")
+
+
+
 
 
