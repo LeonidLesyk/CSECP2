@@ -29,11 +29,12 @@ def read(request):
     puzzle = request.POST.get("puzzle")
     signature = request.POST.get("signature")
 
+    #get users public key
     entry = public_keys.objects.get(username = claimedusername)
-
     public_keystr = entry.public_key
     public_key = load_pem_public_key(str.encode(public_keystr))
 
+    clearPuzzles()
     print(held_puzzles)
     print(puzzle)
     puzzledatetime = datetime.strptime(puzzle, "%Y-%m-%d %H:%M:%S.%f")
@@ -78,10 +79,14 @@ def register(request):
 def givePuzzle(request):
 
     #clear puzzles older than 5 seconds
-    while len(held_puzzles) > 0 and held_puzzles[0] + timedelta(5) < datetime.now():
-        held_puzzles.pop(0)
+    clearPuzzles()
     
     puzzle = datetime.now()
 
     held_puzzles.append(puzzle)
     return HttpResponse(puzzle)
+
+def clearPuzzles():
+    #clear puzzles older than 5 seconds
+    while len(held_puzzles) > 0 and held_puzzles[0] + timedelta(seconds=5) < datetime.now():
+        held_puzzles.pop(0)
