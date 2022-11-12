@@ -57,7 +57,10 @@ def read(request):
 
     print("verified")
 
-    msg_json = serializers.serialize('json',unread_messages.objects.filter(receiver=claimedusername))
+    unread_messages_set = unread_messages.objects.filter(receiver=claimedusername)
+
+    msg_json = serializers.serialize('json',unread_messages_set)
+    unread_messages_set.delete()
     print(msg_json)
     return HttpResponse(msg_json)
 
